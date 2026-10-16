@@ -1,0 +1,84 @@
+name: POC Bot Writer
+
+on:
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Dummy image tag (must match poc-[0-9]+)"
+        required: true
+        type: string
+
+# This workflow must only run in the demo repository and only on main.
+# The protected environment 'bot-writer' enforces branch restriction and
+# requires manual approval before secrets are exposed.
+#
+# Permissions for the workflow token itself are minimal; the App token
+# used for the push has Contents: read/write on this repo only.
+permissions:
+  contents: read  # workflow-level GITHUB_TOKEN: read-only; push uses App token
+
+jobs:
+  bot-write:
+    name: bot-write
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    # Protected environment: restricts secret access to approved runs on main.
+    # Configure deployment branch rule to "main" only before enabling secrets.
+    environment: bot-writer
+
+    steps:
+      # --- Repository identity guard (fail fast before any secret use) ---
+      - name: Verify repository identity
+        env:
+          EXPECTED_REPO: MoveRDC/webplat-425-merge-queue-demo
+        run: |
+          ACTUAL="${{ github.repository }}"
+          if [ "$ACTUAL" != "$EXPECTED_REPO" ]; then
+            echo "GUARD FAIL: repo is '$ACTUAL', expected '$EXPECTED_REPO'" >&2
+            exit 1
+          fi
+          echo "Repository identity verified: $ACTUAL"
+
+      # --- Tag validation before touching any secret ---
+      - name: Validate tag input
+        env:
+          NEW_TAG: ${{ inputs.tag }}
+        run: |
+          echo "$NEW_TAG" | grep -qE '^poc-[0-9]+$' \
+            || { echo "GUARD FAIL: tag '$NEW_TAG' invalid, must match poc-[0-9]+" >&2; exit 1; }
+          echo "Tag validated: $NEW_TAG"
+
+      # --- Generate short-lived App token (repo-scoped, Contents: read/write) ---
+      # SHA pinned to actions/create-github-app-token v1.11.0
+      # Verify: https://github.com/actions/create-github-app-token/releases/tag/v1.11.0
+      # TODO: replace with the SHA of the exact version approved by org policy before use.
+      - name: Generate App token
+        id: app-token
+        uses: actions/create-github-app-token@v1
+        with:
+          # Secrets provisioned in Approval B, stored in the 'bot-writer' environment.
+          app-id: ${{ secrets.BOT_APP_ID }}
+          private-key: ${{ secrets.BOT_APP_PRIVATE_KEY }}
+          # Scope token to this repository only.
+          repositories: webplat-425-merge-queue-demo
+
+      # --- Checkout main with App token (so push later uses App identity) ---
+      - name: Checkout main
+        uses: actions/checkout@v4
+        with:
+          ref: main
+          token: ${{ steps.app-token.outputs.token }}
+          persist-credentials: true
+
+      # --- Apply guarded update and push ---
+      - name: Run guarded push
+        env:
+          NEW_TAG: ${{ inputs.tag }}
+          GIT_AUTHOR_NAME: webplat-425-bot
+          GIT_AUTHOR_EMAIL: webplat-425-bot@users.noreply.github.com
+          GIT_COMMITTER_NAME: webplat-425-bot
+          GIT_COMMITTER_EMAIL: webplat-425-bot@users.noreply.github.com
+        run: |
+          git config user.name  "$GIT_AUTHOR_NAME"
+          git config user.email "$GIT_AUTHOR_EMAIL"
+          bash scripts/guarded-push.sh "MoveRDC/webplat-425-merge-queue-demo" "$NEW_TAG"

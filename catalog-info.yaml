@@ -1,0 +1,12 @@
+apiVersion: backstage.io/v1alpha1
+kind: Component
+metadata:
+  name: webplat-425-merge-queue-demo
+  description: "WEBPLAT-425 disposable POC — merge queue bypass experiment"
+  annotations:
+    github.com/project-slug: MoveRDC/webplat-425-merge-queue-demo
+    realtor.com/appid: WEBPLAT425MQ
+spec:
+  type: service
+  lifecycle: experimental
+  owner: group:web-platform
