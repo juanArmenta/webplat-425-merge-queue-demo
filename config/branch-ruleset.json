@@ -49,8 +49,8 @@
   ],
   "bypass_actors": [
     {
-      "_comment": "Dedicated test App installed only on this repo — fill in app_id after Approval B",
-      "actor_id": "__BOT_APP_INSTALLATION_ID__",
+      "_comment": "webplat-425-poc-bot — App ID 5348234, installation ID 172153528, MoveRDC/webplat-425-merge-queue-demo only",
+      "actor_id": 5348234,
       "actor_type": "Integration",
       "bypass_mode": "always"
     }
