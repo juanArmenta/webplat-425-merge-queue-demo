@@ -1,0 +1,30 @@
+name: Check
+
+on:
+  pull_request:
+    branches: [main]
+  merge_group:
+    types: [checks_requested]
+
+permissions:
+  contents: read
+
+jobs:
+  mq-poc-check:
+    name: mq-poc-check
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.sha }}
+
+      - name: Simulate slow check (merge_group only)
+        if: github.event_name == 'merge_group'
+        run: |
+          echo "Queue check started: $(date -u +%H:%M:%S) sha=${{ github.sha }}"
+          sleep 120
+          echo "Queue check done:    $(date -u +%H:%M:%S)"
+
+      - name: Pass
+        run: echo "check passed"

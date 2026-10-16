@@ -1,4 +1,0 @@
-rollout:
-  containers:
-    - image:
-        tag: poc-1

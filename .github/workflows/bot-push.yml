@@ -1,0 +1,33 @@
+name: Bot Push
+
+on:
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "New image tag (e.g. v2, v3)"
+        required: true
+
+permissions:
+  contents: write
+
+jobs:
+  push:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Update tag
+        run: |
+          sed -i "s/^  tag: .*/  tag: ${{ inputs.tag }}/" values.yaml
+          cat values.yaml
+
+      - name: Commit and push directly to main
+        run: |
+          git config user.name  "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add values.yaml
+          git commit -m "chore: bump image tag to ${{ inputs.tag }} [bot]"
+          git push origin main
